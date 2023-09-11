@@ -1,3 +1,12 @@
+// 水やりイベントを行った日のデータ
+const eventDays = ['2023-09-05', '2023-09-09', '2023-09-10'];
+// 水やりの量
+function getWaterAmount() {
+  const amounts = ['large', 'medium', 'small'];
+  const randomIndex = Math.floor(Math.random() * amounts.length);
+  return amounts[randomIndex]; // large, medium, smallをランダムで出力
+}
+
 // date settings
 function isoDayOfWeek(dt) {
   let wd = dt.getDay(); // 0-6(日-土)を取得し、wdに代入
@@ -21,7 +30,8 @@ function generateData() {
   const end = today;
   let dt = new Date(new Date().setDate(end.getDate() - 365)); // 現在の日付から365日前(1年前)の日付を求めている
   while (dt <= end) {
-    const iso = dt.toISOString().substr(0, 10); //　dtの最初の10文字(年,月,日)を文字列で取得
+    const iso = dt.toISOString().slice(0, 10); //　dtの最初の10文字(年,月,日)を文字列で取得
+    console.log(iso);
     data2.push({
       x: iso,
       y: isoDayOfWeek(dt),
@@ -40,11 +50,26 @@ const data = {
       label: 'Heat Map',
       data: generateData(), // ヒートマップデータを生成する関数、generateData() の結果を使用
       backgroundColor(c) {
-        const value = c.dataset.data[c.dataIndex].v;
-        const alpha = (10 + value) / 60; // 透明度の値を計算
-        return `rgba(0, 200, 0, ${alpha})`; // セルの背景色を設定
+        const value = c.dataset.data[c.dataIndex].d; // セルの日付を取得
+
+        const isEventDay = eventDays.includes(value); // イベントが行われた日かどうか判定
+
+        if (isEventDay) {
+          const waterSize = getWaterAmount(); // 上げた水の量(large, medium, smallのいずれか)を取得
+          if (waterSize === 'large') {
+            color = `rgba(61, 129, 228, 1)`; // largeのセルは濃い青
+          } else if (waterSize === 'medium') {
+            color = `rgba(84, 214, 228, 1)`; // mediumのセルはやや薄い青
+          } else if (waterSize === 'small') {
+            color = `rgba(187, 224, 228, 1)`; // smallのセルはさらに薄い青
+          }
+          return color; // イベント日のセルの色をリターンする
+        } else {
+          return `rgba(255, 255, 255, 1)`; // イベント日でないセルは白色
+        }
       },
-      borderColor: 'green', // 境界線の色
+
+      borderColor: 'gray', // セルの枠線の色
       borderRadius: 1, // 境界線の丸角度
       borderWidth: 1, // 境界線の幅
       hoverBackgroundColor: 'rgba(255, 26, 104, 0.2)', //　ホバー時の背景色 (赤色)
@@ -123,11 +148,39 @@ const config = {
   type: 'matrix',
   data,
   options: {
+    animation: false, // アニメーションを無効にする
     maintainAspectRatio: false /* ← chartの形状を保つために追加したコード */,
     scales: scales,
     plugins: {
       legend: {
         display: false, // 表題の表示をオフ
+      },
+      tooltip: {
+        titleFont: {
+          size: 10, // タイトルのフォントサイズ
+        },
+        bodyFont: {
+          size: 10, // 本文のフォントサイズ
+        },
+        callbacks: {
+          title(context) {
+            // ホバー時の表示設定
+            const value = context[0].raw.d; // セルの日付を取得
+            const isEventDay = eventDays.includes(value);
+            if (isEventDay) {
+              return `1 watered on ${moment(value).format(
+                'dddd, MMMM D YYYY'
+              )} `; // 水をあげた日の場合
+            } else {
+              return `No watering on ${moment(value).format(
+                'dddd, MMMM D YYYY'
+              )} `; // 水をあげていない日の場合
+            }
+          },
+          label() {
+            return ''; // ラベルを空にすることで日付のみ表示
+          },
+        },
       },
     },
   },
@@ -137,4 +190,4 @@ const config = {
 const myChart = new Chart(document.getElementById('myChart'), config);
 // Instantly assign Chart.js version
 const chartVersion = document.getElementById('chartVersion');
-chartVersion.innerText = Chart.version;
+chartVersion.innerText = myChart.version;
